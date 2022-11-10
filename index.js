@@ -44,6 +44,17 @@ async function run() {
       const result = await userCollection.insertOne(service)
       console.log(result);
     });
+
+    const reviewCollection = client.db("Weblogic").collection("Reviews");
+
+    // posting data to add Review
+    app.post("/reviews", async (req, res) => {
+      const review = req.body;
+      console.log(review);
+      const result = await userCollection.insertOne(review)
+      console.log(result);
+    });
+
     // getting data for home
     app.get("/services/home", async (req, res) => {
       const query = {};
@@ -51,6 +62,7 @@ async function run() {
       const services = await cursor.toArray();
       res.send(services);
     });
+
 // getting data for showing service detail
     app.get("/services/:id", async (req, res) => {
       const id = req.params.id;
@@ -65,3 +77,5 @@ async function run() {
 run().catch((err) => {
   console.error(err);
 });
+
+// my-reviewsgit
