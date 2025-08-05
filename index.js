@@ -1,81 +1,95 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 require("dotenv").config();
+
 const app = express();
 const port = process.env.PORT || 5000;
 
-//middlewires in use
-
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
+// Root route
 app.get("/", (req, res) => {
-  res.send("Hello from Weblogic server");
+  res.send("✅ Weblogic server is running!");
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
-
-//database connection
-
+// MongoDB URI & Client
 const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.9rpk71q.mongodb.net/?retryWrites=true&w=majority`;
-const client = new MongoClient(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverApi: ServerApiVersion.v1,
-});
+const client = new MongoClient(uri);
 
 async function run() {
   try {
-    const userCollection = client.db("Weblogic").collection("Services");
-    // geting data
+    await client.connect();
+    console.log("✅ Connected to MongoDB");
+
+    const db = client.db("Weblogic");
+    const servicesCollection = db.collection("Services");
+    const reviewsCollection = db.collection("Reviews");
+
+    // 🔹 Get all services
     app.get("/services", async (req, res) => {
-      const query = {};
-      const cursor = userCollection.find(query);
-      const services = await cursor.toArray();
-      res.send(services);
-    });
-    // posting data to add more serrvice
-    app.post("/services", async (req, res) => {
-      const service = req.body;
-      console.log(service);
-      const result = await userCollection.insertOne(service)
-      console.log(result);
+      try {
+        const services = await servicesCollection.find({}).toArray();
+        res.send(services);
+      } catch (err) {
+        res.status(500).send({ error: "Failed to fetch services" });
+      }
     });
 
-    const reviewCollection = client.db("Weblogic").collection("Reviews");
-
-    // posting data to add Review
-    app.post("/reviews", async (req, res) => {
-      const review = req.body;
-      console.log(review);
-      const result = await userCollection.insertOne(review)
-      console.log(result);
-    });
-
-    // getting data for home
+    // 🔹 Get top 3 services for home
     app.get("/services/home", async (req, res) => {
-      const query = {};
-      const cursor = userCollection.find(query).limit(3);
-      const services = await cursor.toArray();
-      res.send(services);
+      try {
+        const services = await servicesCollection.find({}).limit(3).toArray();
+        res.send(services);
+      } catch (err) {
+        res.status(500).send({ error: "Failed to fetch home services" });
+      }
     });
 
-// getting data for showing service detail
+    // 🔹 Get single service by ID
     app.get("/services/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const service = await userCollection.findOne(query);
-      res.send(service);
+      try {
+        const id = req.params.id;
+        const service = await servicesCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        res.send(service);
+      } catch (err) {
+        res.status(500).send({ error: "Failed to fetch service" });
+      }
     });
-  } finally {
+
+    // 🔹 Add a new service
+    app.post("/services", async (req, res) => {
+      try {
+        const service = req.body;
+        const result = await servicesCollection.insertOne(service);
+        res.status(201).send(result);
+      } catch (err) {
+        res.status(500).send({ error: "Failed to add service" });
+      }
+    });
+
+    // 🔹 Add a new review
+    app.post("/reviews", async (req, res) => {
+      try {
+        const review = req.body;
+        const result = await reviewsCollection.insertOne(review);
+        res.status(201).send(result);
+      } catch (err) {
+        res.status(500).send({ error: "Failed to add review" });
+      }
+    });
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:", err);
   }
 }
 
-run().catch((err) => {
-  console.error(err);
-});
+run().catch(console.error);
 
-// my-reviewsgit
+// Start server
+app.listen(port, () => {
+  console.log(`🚀 Server listening on http://localhost:${port}`);
+});
